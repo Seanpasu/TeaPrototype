@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pressure Rig — Minigame</title>
+<style>
+  :root{
+    --bg: #14161a;
+    --panel: #23262b;
+    --panel-2: #2c2f35;
+    --metal: #3a3e45;
+    --amber: #e8a33d;
+    --amber-dim: #7a5a26;
+    --teal: #3fa9a0;
+    --rust: #c1502e;
+    --text: #e9e5df;
+    --text-dim: #9a978f;
+    --led-off: #3a1414;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    height:100%;
+    margin:0;
+    background:
+      radial-gradient(ellipse at 50% 0%, #1d2126 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #launcher{
+    text-align:center;
+  }
+  #launcher h1{
+    font-size:1.4rem;
+    font-weight:600;
+    letter-spacing:.01em;
+    margin-bottom:.4rem;
+  }
+  #launcher p{
+    color:var(--text-dim);
+    max-width:360px;
+    margin:0 auto 1.4rem;
+    line-height:1.5;
+    font-size:.92rem;
+  }
+  #launch-btn{
+    background:linear-gradient(180deg,var(--amber),#c47f22);
+    border:none;
+    color:#231803;
+    font-weight:700;
+    font-size:1rem;
+    padding:.85rem 1.8rem;
+    border-radius:6px;
+    cursor:pointer;
+    box-shadow:0 4px 0 #8a5c16, 0 8px 14px rgba(0,0,0,.4);
+    transition:transform .05s;
+  }
+  #launch-btn:active{ transform:translateY(3px); box-shadow:0 1px 0 #8a5c16, 0 3px 8px rgba(0,0,0,.4); }
+
+  /* ---------- Overlay / Window ---------- */
+  .hidden{ display:none !important; }
+  #overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.65);
+    display:flex; align-items:center; justify-content:center;
+    z-index:1000;
+  }
+  #game-window{
+    width:700px; max-width:94vw;
+    background:linear-gradient(180deg,var(--panel),#1c1e22);
+    border-radius:10px;
+    border:1px solid #000;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px #4a4e56;
+    position:relative;
+    overflow:hidden;
+    user-select:none;
+  }
+  .rivet{
+    position:absolute; width:8px;height:8px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #6b6f77, #26282c);
+    box-shadow:0 1px 2px rgba(0,0,0,.6);
+  }
+  .rivet.tl{top:8px;left:8px;} .rivet.tr{top:8px;right:8px;}
+  .rivet.bl{bottom:8px;left:8px;} .rivet.br{bottom:8px;right:8px;}
+
+  #title-bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 22px;
+    background:linear-gradient(180deg,#2a2d33,#202226);
+    border-bottom:1px solid #000;
+  }
+  #title-bar .left{ display:flex; align-items:center; gap:10px; }
+  .led{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--led-off);
+    box-shadow:inset 0 0 2px #000;
+  }
+  .led.on{
+    background:var(--rust);
+    box-shadow:0 0 8px 2px var(--rust), inset 0 0 2px #000;
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse{ 50%{ opacity:.55; } }
+  #stage-label{ font-size:.8rem; letter-spacing:.06em; color:var(--text-dim); font-family: "Courier New", monospace;}
+  #stage-label b{ color:var(--amber); }
+  #score-readout{
+    font-family:"Courier New", monospace;
+    font-size:.85rem;
+    color:var(--teal);
+    background:#0f1113;
+    padding:4px 10px;
+    border-radius:4px;
+    border:1px solid #000;
+  }
+  #close-btn{
+    background:none;border:1px solid #55585f;color:var(--text-dim);
+    width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:.8rem;
+    margin-left:12px;
+  }
+  #close-btn:hover{ color:var(--rust); border-color:var(--rust); }
+
+  #stage-area{
+    position:relative;
+    height:340px;
+    background:
+      linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px) 0 0/28px 28px,
+      linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px) 0 0/28px 28px,
+      #191b1f;
+    overflow:hidden;
+  }
+  #hint{
+    position:absolute; top:10px; left:0; right:0;
+    text-align:center;
+    font-size:.82rem;
+    color:var(--text-dim);
+    pointer-events:none;
+    padding:0 20px;
+  }
+  #hint b{ color:var(--amber); }
+
+  /* shapes */
+  .pump-btn{
+    position:absolute;
+    width:110px;height:110px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #d9863c, #96501e);
+    border:4px solid #5c3413;
+    color:#2a1400;
+    font-weight:700;
+    font-size:.95rem;
+    cursor:pointer;
+    box-shadow:0 6px 0 #3e2308, 0 10px 20px rgba(0,0,0,.5);
+  }
+  .pump-btn:active{ box-shadow:0 2px 0 #3e2308; transform:translateY(4px); }
+
+  .square{
+    width:56px;height:56px;
+    background:linear-gradient(145deg,#ff9d5c,#c15f1e);
+    border-radius:8px;
+    position:absolute;
+    cursor:grab;
+    box-shadow:0 4px 10px rgba(0,0,0,.4);
+    border:2px solid #7a3c0f;
+  }
+  .circle-target{
+    width:170px;height:170px;
+    border-radius:50%;
+    border:3px dashed var(--teal);
+    position:absolute;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--teal);
+    font-size:.7rem;
+    letter-spacing:.05em;
+    background:rgba(63,169,160,.06);
+    text-align:center;
+    padding:10px;
+  }
+  .triangle{
+    width:0;height:0;
+    border-left:34px solid transparent;
+    border-right:34px solid transparent;
+    border-bottom:58px solid var(--amber);
+    position:absolute;
+    cursor:pointer;
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.4));
+  }
+  .triangle.small{
+    border-left:20px solid transparent;
+    border-right:20px solid transparent;
+    border-bottom:34px solid #e07a3f;
+  }
+  .cube{
+    width:38px;height:38px;
+    background:linear-gradient(145deg,#9db3c6,#5d7891);
+    border-radius:6px;
+    position:absolute;
+    cursor:grab;
+    box-shadow:0 3px 8px rgba(0,0,0,.4);
+    border:2px solid #3e5266;
+  }
+  .cube.locked{ pointer-events:none; opacity:.28; }
+  .cylinder{
+    width:50px;height:28px;
+    border-radius:14px;
+    background:linear-gradient(145deg,#d8d8d8,#8b8b8b);
+    position:absolute;
+    cursor:grab;
+    box-shadow:0 3px 8px rgba(0,0,0,.4);
+    border:2px solid #5c5c5c;
+  }
+  .status-text{
+    position:absolute;
+    bottom:8px; left:0; right:0;
+    text-align:center;
+    font-size:.75rem;
+    color:var(--text-dim);
+    font-family:"Courier New", monospace;
+  }
+
+  /* gauge */
+  #gauge-wrap{
+    padding:14px 22px 18px;
+    background:linear-gradient(180deg,#1c1e22,#191b1f);
+    border-top:1px solid #000;
+  }
+  #gauge-label-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:6px;
+    font-family:"Courier New", monospace;
+    font-size:.78rem;
+    color:var(--text-dim);
+  }
+  #gauge-value{ color:var(--amber); font-size:.95rem; font-weight:700; }
+  #gauge-track{
+    position:relative;
+    height:22px;
+    border-radius:11px;
+    background:#0e0f11;
+    border:1px solid #000;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.6);
+    overflow:hidden;
+  }
+  #gauge-fill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(180deg,#f2c463,var(--amber-dim));
+    transition:width .06s linear;
+  }
+  #gauge-fill.over{ background:linear-gradient(180deg,#f2946a,#8a3a1c); }
+  .gauge-zone{
+    position:absolute; top:0; bottom:0;
+    background:rgba(63,169,160,.28);
+    border-left:1px solid var(--teal);
+    border-right:1px solid var(--teal);
+  }
+  .gauge-marker{
+    position:absolute; top:-3px; bottom:-3px;
+    width:2px;
+    background:#fff;
+  }
+  .gauge-marker::after{
+    content:attr(data-label);
+    position:absolute; top:-16px; left:50%; transform:translateX(-50%);
+    font-size:.62rem; color:#fff; white-space:nowrap;
+    font-family:"Courier New", monospace;
+  }
+
+  #finish-btn{
+    position:absolute;
+    bottom:38px; left:50%; transform:translateX(-50%);
+    background:linear-gradient(180deg,var(--teal),#2a7a72);
+    border:none; color:#04211d;
+    font-weight:700; font-size:.95rem;
+    padding:.7rem 1.8rem;
+    border-radius:6px;
+    cursor:pointer;
+    box-shadow:0 4px 0 #1c4d47, 0 8px 16px rgba(0,0,0,.45);
+  }
+  #finish-btn:active{ transform:translate(-50%,3px); box-shadow:0 1px 0 #1c4d47; }
+
+  /* results */
+  #results{
+    position:absolute; inset:0;
+    background:#191b1f;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px;
+  }
+  #results h2{
+    font-size:1.6rem; color:var(--amber); margin:0 0 4px;
+    font-family:"Courier New", monospace;
+  }
+  .result-row{
+    font-family:"Courier New", monospace;
+    font-size:.85rem;
+    color:var(--text-dim);
+    display:flex; gap:14px; width:260px; justify-content:space-between;
+  }
+  .result-row.total{ color:var(--text); font-size:1rem; border-top:1px solid #444; margin-top:6px; padding-top:8px; }
+  #restart-btn{
+    margin-top:18px;
+    background:none;
+    border:1px solid var(--amber);
+    color:var(--amber);
+    padding:.5rem 1.2rem;
+    border-radius:5px;
+    cursor:pointer;
+    font-size:.85rem;
+  }
+  #restart-btn:hover{ background:rgba(232,163,61,.12); }
+</style>
+</head>
+<body>
+
+<div id="launcher">
+  <h1>Tea Brewing</h1>
+  <p>A four-stage 2D tea preparation minigame PROTOTYPE</p>
+  <!-- <p>A four-stage 2D tea preparation minigame PROTOTYPE. boil water, strain tea leaves, avoid pouring too much tea, and add the correct amount of tea and sugar.</p> -->
+  <button id="launch-btn">Start Minigame</button>
+</div>
+
+<div id="overlay" class="hidden">
+  <div id="game-window">
+    <div class="rivet tl"></div><div class="rivet tr"></div>
+    <div class="rivet bl"></div><div class="rivet br"></div>
+
+    <div id="title-bar">
+      <div class="left">
+        <span class="led on" id="stage-led"></span>
+        <span id="stage-label">STAGE <b id="stage-num">1</b> / 4</span>
+      </div>
+      <div style="display:flex;align-items:center;">
+        <span id="score-readout">RUNNING TOTAL: 0</span>
+        <button id="close-btn" title="Close">✕</button>
+      </div>
+    </div>
+
+    <div id="stage-area">
+      <div id="hint"></div>
+      <!-- dynamic stage content injected here -->
+      <div id="results" class="hidden"></div>
+    </div>
+
+    <div id="gauge-wrap">
+      <div id="gauge-label-row">
+        <span id="gauge-name">GAUGE</span>
+        <span id="gauge-value">0%</span>
+      </div>
+      <div id="gauge-track">
+        <div id="gauge-fill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const overlay = document.getElementById('overlay');
+  const launchBtn = document.getElementById('launch-btn');
+  const closeBtn = document.getElementById('close-btn');
+  const stageArea = document.getElementById('stage-area');
+  const hintEl = document.getElementById('hint');
+  const stageNumEl = document.getElementById('stage-num');
+  const scoreReadout = document.getElementById('score-readout');
+  const gaugeFill = document.getElementById('gauge-fill');
+  const gaugeTrack = document.getElementById('gauge-track');
+  const gaugeValueEl = document.getElementById('gauge-value');
+  const gaugeNameEl = document.getElementById('gauge-name');
+  const resultsEl = document.getElementById('results');
+
+  // ---------- global game state ----------
+  let G = {};
+
+  function resetState(){
+    G = {
+      stage: 1,
+      gauge: 0,          // current stage's live gauge value (can exceed 100)
+      score1: 0,
+      score2: 0,
+      stage3Penalty: 0,
+      squareInCircle: false,
+      cubesIn: 0,
+      holdInterval: null,
+    };
+  }
+
+  function fmtScore(){
+    let running = G.score1 + G.score2 - (G.stage.toString()==='3'||G.stage>3 ? G.stage3Penalty : 0);
+    return Math.round(running);
+  }
+  function updateScoreReadout(){
+    scoreReadout.textContent = 'RUNNING TOTAL: ' + fmtScore();
+  }
+
+  // ---------- gauge helpers ----------
+  function clearGaugeZones(){
+    gaugeTrack.querySelectorAll('.gauge-zone, .gauge-marker').forEach(n=>n.remove());
+  }
+  function setGaugeZoneBand(from,to){
+    clearGaugeZones();
+    const z = document.createElement('div');
+    z.className='gauge-zone';
+    z.style.left = from+'%';
+    z.style.width = (to-from)+'%';
+    gaugeTrack.appendChild(z);
+  }
+  function setGaugeMarker(pct,label){
+    clearGaugeZones();
+    const m = document.createElement('div');
+    m.className='gauge-marker';
+    m.style.left = pct+'%';
+    m.dataset.label = label;
+    gaugeTrack.appendChild(m);
+  }
+  function renderGauge(){
+    const display = Math.max(0, Math.min(100, G.gauge));
+    gaugeFill.style.width = display + '%';
+    gaugeFill.classList.toggle('over', G.gauge > 100);
+    gaugeValueEl.textContent = Math.round(G.gauge) + '%';
+  }
+  function setGauge(v){
+    G.gauge = Math.max(0, Math.min(200, v));
+    renderGauge();
+  }
+
+  // ---------- generic drag ----------
+  function enableDrag(el, onDrop){
+    el.addEventListener('pointerdown', e=>{
+      if(e.button!==0) return;
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      const areaRect = stageArea.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const offX = e.clientX - elRect.left;
+      const offY = e.clientY - elRect.top;
+      el.style.cursor='grabbing';
+      function move(ev){
+        let x = ev.clientX - areaRect.left - offX;
+        let y = ev.clientY - areaRect.top - offY;
+        el.style.left = x+'px';
+        el.style.top = y+'px';
+      }
+      function up(ev){
+        el.releasePointerCapture(e.pointerId);
+        el.removeEventListener('pointermove',move);
+        el.removeEventListener('pointerup',up);
+        el.style.cursor='grab';
+        if(onDrop) onDrop();
+      }
+      el.addEventListener('pointermove',move);
+      el.addEventListener('pointerup',up);
+    });
+  }
+  function isInsideCircle(el, circle, tolerance){
+    tolerance = tolerance===undefined?0.75:tolerance;
+    const a = el.getBoundingClientRect();
+    const c = circle.getBoundingClientRect();
+    const ax = a.left+a.width/2, ay = a.top+a.height/2;
+    const cx = c.left+c.width/2, cy = c.top+c.height/2;
+    const dist = Math.hypot(ax-cx, ay-cy);
+    return dist < (c.width/2)*tolerance;
+  }
+
+  // ---------- hold-to-fill helper ----------
+  function attachHold(el, {rate, interval, canFillCheck, blockedMsg}){
+    let iv = null;
+    function start(delta){
+      if(iv) return;
+      if(canFillCheck && !canFillCheck()){
+        if(blockedMsg) flashHint(blockedMsg);
+        return;
+      }
+      iv = setInterval(()=>{ setGauge(G.gauge + delta); onGaugeChangedForStage(); }, interval);
+    }
+    function stop(){ if(iv){ clearInterval(iv); iv=null; } }
+    el.addEventListener('contextmenu', e=>e.preventDefault());
+    el.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      if(e.button===0) start(rate.up);
+      else if(e.button===2 && rate.down) start(-rate.down);
+    });
+    window.addEventListener('pointerup', stop);
+    el.addEventListener('pointerleave', ()=>{ /* keep filling until release, like a valve held down */ });
+    return {stop};
+  }
+
+  let hintTimeout=null;
+  function flashHint(msg){
+    hintEl.textContent = msg;
+    hintEl.style.color = 'var(--rust)';
+    clearTimeout(hintTimeout);
+    hintTimeout = setTimeout(()=>{ hintEl.style.color=''; setStageHint(currentStaticHint); },1200);
+  }
+  let currentStaticHint = '';
+  function setStageHint(msg){
+    currentStaticHint = msg;
+    hintEl.textContent = msg;
+    hintEl.style.color='';
+  }
+
+  let onGaugeChangedForStage = ()=>{};
+
+  // =========================================================
+  // STAGE 1
+  // =========================================================
+  function initStage1(){
+    G.stage = 1;
+    setGauge(0);
+    stageNumEl.textContent='1';
+    stageArea.querySelectorAll('.stage-el').forEach(n=>n.remove());
+    resultsEl.classList.add('hidden');
+    gaugeNameEl.textContent='TEMPERATURE LEVEL';
+    setGaugeMarker(80,'80%');
+    setStageHint('Fan the flames to get water temperature as close to 80% as you can. Hold right-click on it to magically cool the water. Press SPACE to use the water to brew tea.');
+    updateScoreReadout();
+
+    const pump = document.createElement('button');
+    pump.className='pump-btn stage-el';
+    pump.textContent='Fan the Flames';
+    pump.style.left='calc(50% - 55px)';
+    pump.style.top='110px';
+    pump.addEventListener('contextmenu', e=>e.preventDefault());
+    stageArea.appendChild(pump);
+
+    let bleedIv=null;
+    pump.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      if(e.button===0){
+        setGauge(Math.min(100, G.gauge + 4));
+      } else if(e.button===2){
+        if(bleedIv) return;
+        bleedIv = setInterval(()=>{ setGauge(G.gauge - 1); }, 150);
+      }
+    });
+    window.addEventListener('pointerup', ()=>{ if(bleedIv){ clearInterval(bleedIv); bleedIv=null; } });
+
+    onGaugeChangedForStage = ()=>{};
+  }
+  function finishStage1(){
+    const dist = Math.abs(G.gauge - 80);
+    G.score1 = 0.0 - dist*1.25;
+    initStage2();
+  }
+
+  // =========================================================
+  // STAGE 2
+  // =========================================================
+  function initStage2(){
+    G.stage = 2;
+    setGauge(0);
+    G.squareInCircle = false;
+    stageNumEl.textContent='2';
+    stageArea.querySelectorAll('.stage-el').forEach(n=>n.remove());
+    gaugeNameEl.textContent='FILL LEVEL';
+    setGaugeZoneBand(80,100);
+    setStageHint('Drag the strainer onto the cup, then hold the triangle to pour the tea. Try not to under-fill or overfill the cup! Press SPACE when done.');
+    updateScoreReadout();
+
+    const circle = document.createElement('div');
+    circle.className='circle-target stage-el';
+    circle.textContent='TEACUP';
+    circle.style.left='380px';
+    circle.style.top='70px';
+    stageArea.appendChild(circle);
+
+    const squareStart = {left:'60px', top:'90px'};
+    const square = document.createElement('div');
+    square.className='square stage-el';
+    square.textContent='STRAINER';
+    square.style.left = squareStart.left;
+    square.style.top = squareStart.top;
+    stageArea.appendChild(square);
+
+    const triangle = document.createElement('div');
+    triangle.className='triangle stage-el';
+    triangle.textContent='Pour Tea';
+    triangle.style.left='60px';
+    triangle.style.top='210px';
+    stageArea.appendChild(triangle);
+
+    enableDrag(square, ()=>{
+      if(isInsideCircle(square, circle)){
+        G.squareInCircle = true;
+        // snap to circle center visually
+        const cRect = circle.getBoundingClientRect();
+        const aRect = stageArea.getBoundingClientRect();
+        square.style.left = (cRect.left - aRect.left + cRect.width/2 - square.offsetWidth/2)+'px';
+        square.style.top = (cRect.top - aRect.top + cRect.height/2 - square.offsetHeight/2)+'px';
+        setStageHint('Strainer placed. Hold the triangle to fill the cup. Try not to under-fill or overfill it! Press SPACE when done.');
+      } else {
+        G.squareInCircle = false;
+      }
+    });
+
+    attachHold(triangle, {
+      rate:{up:2},
+      interval:100,
+      canFillCheck: ()=>G.squareInCircle,
+      blockedMsg:'Place the strainer in the teacup first!'
+    });
+
+    onGaugeChangedForStage = ()=>{};
+
+    // store reset info for finish
+    initStage2.reset = ()=>{ square.style.left=squareStart.left; square.style.top=squareStart.top; };
+  }
+  function finishStage2(){
+    let s2;
+    if(G.gauge >= 80 && G.gauge <= 100) s2 = 100;
+    else if(G.gauge < 80) s2 = 100 - 2*(80-G.gauge);
+    else s2 = 80; // above 100
+    G.score2 = s2;
+    if(initStage2.reset) initStage2.reset();
+    initStage3();
+  }
+
+  // =========================================================
+  // STAGE 3
+  // =========================================================
+  function initStage3(){
+    G.stage = 3;
+    setGauge(0);
+    G.cubesIn = 0;
+    stageNumEl.textContent='3';
+    stageArea.querySelectorAll('.stage-el').forEach(n=>n.remove());
+    gaugeNameEl.textContent='CREAM TO TEA RATIO';
+    setGaugeZoneBand(15,25);
+    setStageHint('Place exactly two sugar cubes into the teacup, then hold the small triangle to pour cream. Careful, they don\'t want much! Drag the spoon into the teacup when done.');
+    updateScoreReadout();
+
+    const circle = document.createElement('div');
+    circle.className='circle-target stage-el';
+    circle.textContent='TEACUP';
+    circle.style.left='300px';
+    circle.style.top='60px';
+    stageArea.appendChild(circle);
+
+    const cubePositions = [
+      {left:'40px', top:'40px'},
+      {left:'40px', top:'220px'},
+      {left:'560px', top:'40px'},
+      {left:'560px', top:'220px'},
+    ];
+    const cubes = cubePositions.map(pos=>{
+      const cube = document.createElement('div');
+      cube.className='cube stage-el';
+      cube.style.left = pos.left;
+      cube.style.top = pos.top;
+      stageArea.appendChild(cube);
+      enableDrag(cube, ()=>{
+        if(cube.classList.contains('locked')) return;
+        if(isInsideCircle(cube, circle)){
+          cube.remove();
+          G.cubesIn++;
+          if(G.cubesIn >= 2){
+            cubes.forEach(c=>{ if(c.isConnected) c.classList.add('locked'); });
+            setStageHint('Two cubes placed. Now hold the small triangle to calibrate the gauge.');
+          } else {
+            setStageHint('One cube placed. Drag one more cube into the circle.');
+          }
+        }
+      });
+      return cube;
+    });
+
+    const triangle = document.createElement('div');
+    triangle.className='triangle small stage-el';
+    triangle.textContent='Pour Cream';
+    triangle.style.left='300px';
+    triangle.style.top='250px';
+    stageArea.appendChild(triangle);
+
+    attachHold(triangle, {
+      rate:{up:1, down:1},
+      interval: 120,
+      canFillCheck: ()=>G.cubesIn>=2,
+      blockedMsg:'Place two sugar cubes into the teacup first!'
+    });
+
+    const cylinder = document.createElement('div');
+    cylinder.className='cylinder stage-el';
+    cylinder.style.left='250px';
+    cylinder.style.top='150px';
+    stageArea.appendChild(cylinder);
+
+    enableDrag(cylinder, ()=>{
+      if(isInsideCircle(cylinder, circle)){
+        finishStage3();
+      }
+    });
+
+    onGaugeChangedForStage = ()=>{};
+  }
+  function finishStage3(){
+    const g = G.gauge;
+    let penalty;
+    if(g === 0){
+      penalty = 50;
+    } else {
+      let outside = 0;
+      if(g < 15) outside = 15-g;
+      else if(g > 25) outside = g-25;
+      penalty = Math.floor(outside/5);
+    }
+    G.stage3Penalty = penalty;
+    updateScoreReadout();
+    initStage4();
+  }
+
+  // =========================================================
+  // STAGE 4
+  // =========================================================
+  function initStage4(){
+    G.stage = 4;
+    setGauge(0);
+    stageNumEl.textContent='4';
+    stageArea.querySelectorAll('.stage-el').forEach(n=>n.remove());
+    gaugeNameEl.textContent='';
+    clearGaugeZones();
+    setStageHint('Stir the tea.');
+    updateScoreReadout();
+
+    const areaRect = stageArea.getBoundingClientRect();
+    const centerX = areaRect.width/2;
+    const centerY = areaRect.height/2 - 10;
+    const orbitRadius = 95;
+
+    const circle = document.createElement('div');
+    circle.className='circle-target stage-el';
+    circle.textContent='TEACUP';
+    circle.style.left = (centerX-85)+'px';
+    circle.style.top = (centerY-85)+'px';
+    circle.textContent='';
+    stageArea.appendChild(circle);
+
+    const cylinder = document.createElement('div');
+    cylinder.className='cylinder stage-el';
+    stageArea.appendChild(cylinder);
+
+    let angle = -Math.PI/2; // start at top
+    function positionCylinder(){
+      const x = centerX + orbitRadius*Math.cos(angle);
+      const y = centerY + orbitRadius*Math.sin(angle);
+      cylinder.style.left = x+'px';
+      cylinder.style.top = y+'px';
+      cylinder.style.transform = `translate(-50%,-50%) rotate(${angle*180/Math.PI+90}deg)`;
+    }
+    positionCylinder();
+
+    let dragging=false, lastAngle=null, rotAccDeg=0;
+    function angleFromEvent(e){
+      const r = stageArea.getBoundingClientRect();
+      const mx = e.clientX - r.left, my = e.clientY - r.top;
+      return Math.atan2(my-centerY, mx-centerX);
+    }
+    function normDiff(d){
+      while(d>Math.PI) d-=2*Math.PI;
+      while(d<-Math.PI) d+=2*Math.PI;
+      return d;
+    }
+
+    cylinder.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      dragging = true;
+      lastAngle = angleFromEvent(e);
+      cylinder.setPointerCapture(e.pointerId);
+    });
+    cylinder.addEventListener('pointermove', e=>{
+      if(!dragging || G.gauge>=100) return;
+      const curAngle = angleFromEvent(e);
+      const delta = normDiff(curAngle-lastAngle);
+      lastAngle = curAngle;
+      angle = curAngle;
+      positionCylinder();
+      rotAccDeg += Math.abs(delta)*180/Math.PI;
+      while(rotAccDeg>=360){
+        rotAccDeg -= 360;
+        setGauge(Math.min(100, G.gauge+20));
+      }
+      if(G.gauge>=100){
+        showFinishButton();
+      }
+    });
+    cylinder.addEventListener('pointerup', e=>{
+      dragging=false;
+      try{cylinder.releasePointerCapture(e.pointerId);}catch(err){}
+    });
+
+    onGaugeChangedForStage = ()=>{};
+  }
+
+  function showFinishButton(){
+    if(document.getElementById('finish-btn')) return;
+    const btn = document.createElement('button');
+    btn.id='finish-btn';
+    btn.className='stage-el';
+    btn.textContent='FINISH';
+    stageArea.appendChild(btn);
+    btn.addEventListener('click', finalizeGame);
+    setStageHint('You\'ve made a cup of tea to order! Press FINISH to tally your score.');
+  }
+
+  function finalizeGame(){
+    const total = G.score1 + G.score2 - G.stage3Penalty;
+    const final = Math.max(0, Math.round(total));
+    stageArea.querySelectorAll('.stage-el').forEach(n=>n.remove());
+    hintEl.textContent='';
+    document.getElementById('gauge-wrap').style.visibility='hidden';
+
+    resultsEl.classList.remove('hidden');
+    resultsEl.innerHTML = `
+      <h2>FINAL SCORE: ${final}</h2>
+      <div class="result-row"><span>Stage 2 — Tea Amount Score</span><span>${Math.round(G.score2)}</span></div>
+      <div class="result-row"><span>Stage 1 — Water Temperature Penalty</span><span>${Math.round(G.score1)}</span></div>
+      <div class="result-row"><span>Stage 3 — Cream Amount Penalty</span><span>-${G.stage3Penalty}</span></div>
+      <div class="result-row total"><span>Final Score</span><span>${final}</span></div>
+    `;
+    const restart = document.createElement('button');
+    restart.id='restart-btn';
+    restart.textContent='Run Again';
+    restart.addEventListener('click', ()=>{
+      document.getElementById('gauge-wrap').style.visibility='visible';
+      resetState();
+      initStage1();
+    });
+    resultsEl.appendChild(restart);
+    scoreReadout.textContent = 'FINAL SCORE: ' + final;
+  }
+
+  // ---------- keyboard ----------
+  document.addEventListener('keydown', e=>{
+    if(overlay.classList.contains('hidden')) return;
+    if(e.code === 'Space'){
+      e.preventDefault();
+      if(G.stage===1) finishStage1();
+      else if(G.stage===2) finishStage2();
+    }
+  });
+
+  // block right-click context menu anywhere in the window
+  document.getElementById('game-window').addEventListener('contextmenu', e=>e.preventDefault());
+
+  // ---------- launch / close ----------
+  launchBtn.addEventListener('click', ()=>{
+    overlay.classList.remove('hidden');
+    document.getElementById('gauge-wrap').style.visibility='visible';
+    resetState();
+    initStage1();
+  });
+  closeBtn.addEventListener('click', ()=>{
+    overlay.classList.add('hidden');
+  });
+})();
+</script>
+</body>
+</html>
