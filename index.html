@@ -508,7 +508,7 @@
     stageNumEl.textContent='1';
     stageArea.querySelectorAll('.stage-el').forEach(n=>n.remove());
     resultsEl.classList.add('hidden');
-    gaugeNameEl.textContent='TEMPERATURE LEVEL';
+    gaugeNameEl.textContent='WATER TEMPERATURE';
     setGaugeMarker(80,'80%');
     setStageHint('Fan the flames to get water temperature as close to 80% as you can. Hold right-click on it to magically cool the water. Press SPACE to use the water to brew tea.');
     updateScoreReadout();
@@ -653,9 +653,9 @@
           G.cubesIn++;
           if(G.cubesIn >= 2){
             cubes.forEach(c=>{ if(c.isConnected) c.classList.add('locked'); });
-            setStageHint('Two cubes placed. Now hold the small triangle to calibrate the gauge.');
+            setStageHint('Sugar Cubes: 2/2. Now hold the small triangle to add cream.');
           } else {
-            setStageHint('One cube placed. Drag one more cube into the circle.');
+            setStageHint('Sugar Cubes: 1/2.');
           }
         }
       });
@@ -678,7 +678,7 @@
 
     const cylinder = document.createElement('div');
     cylinder.className='cylinder stage-el';
-    cylinder.style.left='250px';
+    cylinder.style.left='200px';
     cylinder.style.top='150px';
     stageArea.appendChild(cylinder);
 
