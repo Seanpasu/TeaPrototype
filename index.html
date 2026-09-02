@@ -653,7 +653,7 @@
           G.cubesIn++;
           if(G.cubesIn >= 2){
             cubes.forEach(c=>{ if(c.isConnected) c.classList.add('locked'); });
-            setStageHint('Sugar Cubes: 2/2. Now hold the small triangle to add cream.');
+            setStageHint('Sugar Cubes: 2/2. Now hold the small triangle to add cream.\nPlace the spoon in the cup when done.');
           } else {
             setStageHint('Sugar Cubes: 1/2.');
           }
@@ -678,6 +678,7 @@
 
     const cylinder = document.createElement('div');
     cylinder.className='cylinder stage-el';
+    cylinder.textContent='SPOON';
     cylinder.style.left='200px';
     cylinder.style.top='150px';
     stageArea.appendChild(cylinder);
